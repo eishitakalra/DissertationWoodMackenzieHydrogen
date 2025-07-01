@@ -25,9 +25,9 @@ def read_data():
     df_load = pd.read_parquet("/Users/eishitakalra/Desktop/Dissertation!!/Data/DissertationWoodMackenzieHydrogen/hourly_production_prices.parquet", engine='fastparquet')
 
     df_RE = df_load[["Report_Year","Report_Month","Report_Day","Report_Hour","Solar (MWh)","Wind Onshore (MWh)", "Wind Offshore (MWh)", "Price (EUR/MWh, real 2025)"]].copy()
-    df_RE.loc[:, "Solar (kWh)"] = df_RE["Solar (MWh)"] * 1000
-    df_RE.loc[:, "Wind Offshore (kWh)"] = df_RE["Wind Offshore (MWh)"] * 1000
-    df_RE.loc[:, "Wind Onshore (kWh)"] = df_RE["Wind Onshore (MWh)"] * 1000
+    df_RE.loc[:, "Solar PV"] = df_RE["Solar (MWh)"] * 1000
+    df_RE.loc[:, "Wind Offshore"] = df_RE["Wind Offshore (MWh)"] * 1000
+    df_RE.loc[:, "Wind Onshore"] = df_RE["Wind Onshore (MWh)"] * 1000
     df_RE.loc[:, "Price (EUR/kWh, real 2025)"] = df_RE["Price (EUR/MWh, real 2025)"] * 1000
 
     df_Grid = pd.read_excel('model_hourly_intensities_2025_H1_v1.xlsx',sheet_name='Hourly Data',skiprows=4,usecols="B:F")
@@ -42,24 +42,31 @@ def read_data():
     # Delete data in MW/MWh and Price data from df_RE, only keep renewable data
     df_RE = df_RE.drop(columns=['Price (EUR/kWh, real 2025)', 'Price (EUR/MWh, real 2025)','Solar (MWh)', 'Wind Onshore (MWh)','Wind Offshore (MWh)'])
 
+    # Change Grid data: EUR/kWh to £/kWh and g CO2 /kg H2 to kg CO2/ kg H2:
+    df_Grid['Price (£/kWh, real 2025)'] = df_Grid['Price (EUR/kWh, real 2025)']*0.854987068320592
+    df_Grid = df_Grid.drop(columns=['Price (EUR/kWh, real 2025)'])
+    df_Grid['CO2 Intensity (kg CO2/kWh)'] = df_Grid['CO2 Intensity (g CO2/kWh)']/1000
+    df_Grid = df_Grid.drop(columns=['CO2 Intensity (g CO2/kWh)'])
 
 
     df_Elctro_Costs = pd.DataFrame({
-        'Technology': ['PEM','PEM','PEM','ALK','ALK','ALK','SOEC','SOEC','SOEC'],
+        'Technology': ['PEMWE','PEMWE','PEMWE','AWE','AWE','AWE','SOEC','SOEC','SOEC'],
         'Scale (kW)': [2000,20000,200000,2000,20000,200000,2000,20000,200000],
-        'Balance of Stack ($/kW)': [867.0520341,846.7366522, 790.7136808, 672.5614143, 651.3272692, 597.4636084, 1590.532075, 1561.510838, 1503.745575],
+        'Balance of Stack (£/kW)': [ 1156.603885, 1129.504185,1054.772354, 897.1631619, 868.8378783, 796.9864589, 2121.689938, 2082.977065, 2005.921104 ],
+        # need to get rid of stack capex cos its not acc how it'll be calculated
         'Stack cappex': [578.0346894, 564.4911015, 527.1424539, 448.3742762, 434.2181795, 398.3090723, 1060.354717, 1041.007225, 1002.49705],
-        'Balance of Plant ($/kW)': [ 237 , 209 ,158 , 468 , 414 , 313 , 595 , 467 , 341 ],
-        'Engineering, Procurement & Construction costs ($/kW)': [951, 1169, 1547, 923, 1468, 1987, 703, 1294, 2182],
-        'Owners costs ($/kW)': [235, 327, 423, 293, 456, 599, 184, 357, 577],
-        'Total Installed Cost (TIC) ($/kW)': [2868, 3117, 3447, 2805, 3424, 3895, 4133, 4720, 5606],
+        'Balance of Plant (£/kW)': [189.7077469, 167.6759508, 126.8434368, 374.7114968, 331.1942054, 250.5416611, 476.1794118, 374.1138646, 272.9020255],
+        'Engineering, Procurement & Construction costs (£/kW)': [ 760.7882026, 935.9779316, 1238.529618, 738.3592001, 1175.006147, 1590.215546, 562.7217168, 1035.348368, 1746.311902],
+        'Owners costs (£/kW)': [188.0791382, 261.8253963, 338.9005951, 234.7917669, 365.1771344, 479.401487, 147.1290253, 285.3430374, 461.6929363],
+        'Total Installed Cost (TIC) (£/kW)': [2295.178972, 2494.983464, 2759.046004, 2245.025626, 2740.215365, 3117.145153, 3307.720092, 3777.782335, 4486.827967],
     })
 
     df_Elctro = pd.DataFrame({
-        'Type': ['PEM', 'ALK', 'SOEC'],
+        'Type': ['PEMWE', 'AWE', 'SOEC'],
         'kWh/kg H2': [55.956916, 55.479739, 42.881849],
         'Minimum Load': [0.05, 0.1, 0.05],
         'Maximum Load': [ 1, 1, 1],
+        # get rid of the next two cos it is also changes with time and load
         'Stack Lifetime (hours)': [ 60000, 100000, 60000],
         'Efficiency degradation / year': [0.005, 0.0075, 0.005],
         'Fixed Opex percent': [0.03,0.03,0.03],
