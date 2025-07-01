@@ -13,7 +13,19 @@ def read_data():
     df_RE.loc[:, "Wind Onshore (kWh)"] = df_RE["Wind Onshore (MWh)"] * 1000
     df_RE.loc[:, "Price (EUR/kWh, real 2025)"] = df_RE["Price (EUR/MWh, real 2025)"] * 1000
 
-    df_Intensity = pd.read_excel('model_hourly_intensities_2025_H1_v1.xlsx',sheet_name='Hourly Data',skiprows=4,usecols="B:F")
+    df_Grid = pd.read_excel('model_hourly_intensities_2025_H1_v1.xlsx',sheet_name='Hourly Data',skiprows=4,usecols="B:F")
+    df_Grid.rename(columns={'Great Britain':'CO2 Intensity (g CO2/kWh)'},inplace=True)
+    # Putting Price of grid and Intensity of Grid into one df
+    df_Grid = df_Grid.merge(
+        df_RE[['Report_Year', 'Report_Month', 'Report_Day', 'Report_Hour', 'Price (EUR/kWh, real 2025)']],
+        on=['Report_Year', 'Report_Month', 'Report_Day', 'Report_Hour'],
+        how='left'
+    )
+
+    # Delete data in MW/MWh and Price data from df_RE, only keep renewable data
+    df_RE = df_RE.drop(columns=['Price (EUR/kWh, real 2025)', 'Price (EUR/MWh, real 2025)','Solar (MWh)', 'Wind Onshore (MWh)','Wind Offshore (MWh)'])
+
+
 
     df_Elctro_Costs = pd.DataFrame({
         'Technology': ['PEM','PEM','PEM','ALK','ALK','ALK','SOEC','SOEC','SOEC'],
@@ -56,5 +68,14 @@ def read_data():
         'PPA Price (£/kWh)': [ 0.049, 0.0456, 0.0422],
     })
 
-    return df_RE, df_Intensity, df_Elctro, df_Elctro_Costs, df_Battery, df_PPA
+    df_repperiods = pd.DataFrame({
+        'K': ['January','February','March','April','May','June','July','August','September','October','November','December'],
+        'TB': [0,744,1416,2160,2880,3624,4344,5088,5832,6552,7296,8016],
+        'TE': [71,815,1487,2231,2951,3695,4415,5159,5903,6623,7367,8087],
+        'weights': [1/12,1/12,1/12,1/12,1/12,1/12,1/12,1/12,1/12,1/12,1/12,1/12],
+    })
 
+    return df_RE, df_Grid, df_Elctro, df_Elctro_Costs, df_Battery, df_PPA, df_repperiods
+
+
+# def find_rep_periods(n,year_start,year_end,month_start,month_end,day_start,day_end, freq='H',weights=None):
